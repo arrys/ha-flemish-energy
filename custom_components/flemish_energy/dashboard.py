@@ -18,6 +18,7 @@ ICON = "mdi:transmission-tower"
 ESTIMATES = """Each estimate values published usage for the displayed day at the current contract rate.
 
 {% for entity in integration_entities('flemish_energy') | sort %}
+{% if state_attr(entity, 'flemish_energy_estimate') %}
 {% set day = state_attr(entity, 'usage_date') %}
 {% set usage = state_attr(entity, 'usage_kwh') %}
 {% set rate = state_attr(entity, 'rate_eur_per_kwh') %}
@@ -32,6 +33,7 @@ Waiting for published readings.
 Waiting for the ENGIE rate.
 {% else %}
 Estimate unavailable.
+{% endif %}
 {% endif %}
 {% else %}
 Add a meter and rate through the Flemish Energy setup wizard.

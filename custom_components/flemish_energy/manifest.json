@@ -1,14 +1,16 @@
 {
   "domain": "flemish_energy",
   "name": "Flemish Energy",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "config_flow": true,
   "dependencies": [
     "lovelace",
     "recorder"
   ],
-  "integration_type": "service",
-  "iot_class": "calculated",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
   "requirements": [],
-  "documentation": "https://git.rys.app/arrys/ha-flemish-energy"
+  "documentation": "https://ha-flemish-energy-bb0aa9.pages.rys.app/",
+  "issue_tracker": "https://git.rys.app/arrys/ha-flemish-energy/-/issues",
+  "codeowners": ["@arrys"]
 }

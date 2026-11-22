@@ -6,6 +6,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .const import ENTRY_KIND, FLUVIUS_METER
+from .fluvius.sensor import async_setup_entry as async_setup_meter_sensors
+
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -13,6 +17,10 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up a separately labeled estimate for each energy stream."""
+    if entry.data.get(ENTRY_KIND) == FLUVIUS_METER:
+        await async_setup_meter_sensors(hass, entry, async_add_entities)
+        return
+
     async_add_entities([EstimateSensor(entry.runtime_data, entry)])
 
 
@@ -21,6 +29,7 @@ class EstimateSensor(CoordinatorEntity, SensorEntity):
 
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_native_unit_of_measurement = "EUR"
+    _attr_icon = "mdi:cash"
 
     def __init__(self, coordinator, entry: ConfigEntry) -> None:
         """Use a persistent ID and the label the user entered."""
@@ -31,7 +40,7 @@ class EstimateSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         """Expose the date, usage, and rate behind the estimate."""
-        return self.coordinator.data
+        return {"flemish_energy_estimate": True, **self.coordinator.data}
 
     @property
     def native_value(self) -> float | None:

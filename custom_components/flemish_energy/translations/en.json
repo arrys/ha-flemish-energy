@@ -2,8 +2,46 @@
   "config": {
     "step": {
       "user": {
-        "title": "Connect your energy accounts",
-        "description": "Check both accounts before choosing a meter and rate.\n\n- **ENGIE Belgium** — {engie_status}. [Open ENGIE setup](https://my.home-assistant.io/redirect/config_flow_start/?domain=engie_be) in another tab if needed. Have your dedicated ENGIE email, password, and the verification code from SMS or email ready.\n- **Fluvius Energy** — {fluvius_status}. [Install Fluvius Energy](https://github.com/sander110419/Fluvius-home-assistant) if needed, then [open Fluvius setup](https://my.home-assistant.io/redirect/config_flow_start/?domain=fluvius). Have your Mijn Fluvius email, password, meter EAN, and meter serial number ready. Choose kWh for gas estimates.\n- **Imported kWh statistics** — {statistic_count} found.\n\nIf a provider is already configured, check its entry under **Settings → Devices & services**. Once the initial Fluvius import finishes, return here and continue to run the checks again."
+        "title": "Set up Flemish Energy",
+        "description": "Start by connecting a Mijn Fluvius meter. Then check ENGIE and pair a contract rate with the readings.\n\n- **Mijn Fluvius** — {meter_count} connected here.\n- **ENGIE Belgium** — {engie_status}. [Open the built-in ENGIE setup](https://my.home-assistant.io/redirect/config_flow_start/?domain=engie_be) if needed. Have your ENGIE login and SMS or email verification code ready.",
+        "menu_options": {
+          "meter": "Connect a Mijn Fluvius meter",
+          "readiness": "Check sources and set up an estimate"
+        }
+      },
+      "meter": {
+        "title": "Connect a Mijn Fluvius meter",
+        "description": "Use a personal Mijn Fluvius account with email/password sign-in. In Mijn Fluvius, open **Verbruik → Mijn EAN-lijst** to find the meter's EAN. Use the physical meter's serial number, which is separate from the EAN. Set up electricity and gas as separate meters.",
+        "data": {
+          "email": "Mijn Fluvius email",
+          "password": "Mijn Fluvius password",
+          "ean": "18-digit meter EAN",
+          "meter_serial": "Meter serial number",
+          "meter_type": "Meter type"
+        }
+      },
+      "meter_reauth": {
+        "title": "Reconnect your Mijn Fluvius account",
+        "description": "Enter your current login details for the meter already configured.",
+        "data": {
+          "email": "Mijn Fluvius email",
+          "password": "Mijn Fluvius password",
+          "ean": "18-digit meter EAN",
+          "meter_serial": "Meter serial number",
+          "meter_type": "Meter type"
+        }
+      },
+      "meter_verified": {
+        "title": "Meter verified",
+        "description": "Mijn Fluvius returned **{reading_count}** daily summaries for meter ending in **{serial_suffix}**. Save the meter to import its history. After the first import, open Flemish Energy again and choose **Check sources and set up an estimate**.",
+        "menu_options": {
+          "save_meter": "Save meter and import history",
+          "meter": "Edit meter details"
+        }
+      },
+      "readiness": {
+        "title": "Check readings and contract pricing",
+        "description": "- **Imported kWh statistics** — {statistic_count} found. If the count is zero, wait for the meter's first import.\n- **ENGIE Belgium** — {engie_status}. [Open the built-in ENGIE setup](https://my.home-assistant.io/redirect/config_flow_start/?domain=engie_be) if needed.\n\nContinue to recheck both sources and choose the statistic and rate."
       },
       "pair": {
         "title": "Select and test your sources",
@@ -33,14 +71,29 @@
       "invalid_statistic": "Select an available Fluvius statistic in kWh.",
       "invalid_price": "Select an ENGIE rate sensor with the EUR/kWh unit.",
       "invalid_days": "Enter a whole number from 1 to 14.",
-      "providers_not_ready": "Complete setup or repair of both energy integrations, then continue again.",
+      "providers_not_ready": "Complete the built-in ENGIE Belgium setup or repair its connection, then try again.",
       "no_statistics": "The first Fluvius import has not produced any historical kWh statistics yet. Wait for it to finish, then continue again.",
       "recorder_unavailable": "The Recorder check failed. Check Recorder in Home Assistant and try again.",
       "no_readings_for_day": "No usable readings are published for this day. Try a day further back or check the meter in Mijn Fluvius.",
-      "price_unavailable": "This ENGIE rate is unavailable or has the wrong unit. Choose an active EUR/kWh rate or repair the ENGIE account."
+      "price_unavailable": "This ENGIE rate is unavailable or has the wrong unit. Choose an active EUR/kWh rate or repair the ENGIE account.",
+      "invalid_ean": "Enter the 18-digit EAN from Mijn Fluvius.",
+      "invalid_serial": "Enter the meter serial number using letters, digits, or hyphens.",
+      "wrong_meter": "Use the same EAN, serial number, and meter type as the existing entry.",
+      "fluvius_auth": "Mijn Fluvius rejected the sign-in. Try your personal portal email and password.",
+      "fluvius_connection": "Couldn't check this meter. Verify the EAN and serial number in Mijn Fluvius and try again.",
+      "fluvius_empty": "The portal returned no recent daily summaries. Check whether your account can see this meter's consumption."
     },
     "abort": {
-      "already_configured": "An estimate already uses this Fluvius statistic."
+      "already_configured": "This meter or energy estimate is already configured.",
+      "reauth_successful": "The Mijn Fluvius account was reconnected."
+    }
+  },
+  "selector": {
+    "meter_type": {
+      "options": {
+        "electricity": "Electricity",
+        "gas": "Gas"
+      }
     }
   }
 }
