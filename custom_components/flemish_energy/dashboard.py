@@ -1,15 +1,23 @@
 """Provide a managed Lovelace view for verified Flemish Energy sources."""
 
+import logging
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
 from homeassistant.components import frontend
 from homeassistant.components.lovelace import LOVELACE_DATA
 from homeassistant.components.lovelace.dashboard import LovelaceConfig
+from homeassistant.components.recorder import get_instance
+from homeassistant.components.recorder.statistics import list_statistic_ids
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.json import cached_json_fragment
 
-from .const import DOMAIN, ENTRY_KIND, PIDPA_METER, STATISTIC, WATER_SENSOR
+from .const import DOMAIN, ENTRY_KIND, PIDPA_METER, PRICE, STATISTIC, WATER_SENSOR
+from .electricity import SERIES, electricity_meter, electricity_series, engie_tariff_rows
+
+LOGGER = logging.getLogger(__name__)
 
 TITLE = "Energy & Costs"
 PATH = "flemish-energy"
@@ -70,6 +78,7 @@ class EnergyCostsDashboard(LovelaceConfig):
 
     async def async_load(self, force: bool) -> dict[str, Any]:
         charts = []
+        electricity = {}
         water_cards = []
         for entry in sorted(self.sources.values(), key=lambda item: item.title.casefold()):
             if entry.data.get(ENTRY_KIND) == PIDPA_METER:
@@ -78,31 +87,39 @@ class EnergyCostsDashboard(LovelaceConfig):
                     "type": "tile", "entity": entity_id, "name": entry.title, "icon": WATER_ICON,
                 })
                 water_cards.append(self._usage_chart(entity_id, entry.title))
+                continue
+            if meter := electricity_meter(entry.data[STATISTIC]):
+                electricity.setdefault(meter, []).append(entry)
             else:
                 charts.append(self._usage_chart(entry.data[STATISTIC], entry.title))
 
         sections = []
+        if electricity:
+            sections.append({
+                "type": "grid",
+                "column_span": 2,
+                "cards": await self._async_electricity_cards(electricity),
+            })
         if charts:
-            sections.extend((
-                {
-                    "type": "grid",
-                    "cards": [
-                        {"type": "heading", "heading": "Published usage · 30 days"},
-                        *charts,
-                    ],
-                },
-                {
-                    "type": "grid",
-                    "cards": [
-                        {"type": "heading", "heading": "Current-rate estimates"},
-                        {
-                            "type": "markdown",
-                            "content": ESTIMATES,
-                            "grid_options": {"columns": "full"},
-                        },
-                    ],
-                },
-            ))
+            sections.append({
+                "type": "grid",
+                "cards": [
+                    {"type": "heading", "heading": "Published usage · 30 days"},
+                    *charts,
+                ],
+            })
+        if charts or electricity:
+            sections.append({
+                "type": "grid",
+                "cards": [
+                    {"type": "heading", "heading": "Current-rate estimates"},
+                    {
+                        "type": "markdown",
+                        "content": ESTIMATES,
+                        "grid_options": {"columns": "full"},
+                    },
+                ],
+            })
         if water_cards:
             sections.append({
                 "type": "grid",
@@ -125,6 +142,46 @@ class EnergyCostsDashboard(LovelaceConfig):
                 },
             ],
         }
+
+    async def _async_electricity_cards(
+        self, meters: dict[str, list[ConfigEntry]]
+    ) -> list[dict[str, Any]]:
+        """Build one import/export chart per meter from existing Recorder sources."""
+        candidates = {f"{meter}_{metric}" for meter in meters for metric in SERIES}
+        available = {entry.data[STATISTIC] for entries in meters.values() for entry in entries}
+        try:
+            metadata = await get_instance(self.hass).async_add_executor_job(
+                list_statistic_ids, self.hass, candidates, "sum"
+            )
+            available.update(item["statistic_id"] for item in metadata)
+        except (HomeAssistantError, SQLAlchemyError):
+            LOGGER.debug("Could not discover related electricity statistics", exc_info=True)
+
+        cards: list[dict[str, Any]] = [
+            {"type": "heading", "heading": "Electricity · 30 days", "icon": ICON}
+        ]
+        for meter, entries in meters.items():
+            meter_id = meter.split(":", 1)[1].split("_electricity_", 1)[0]
+            title = (
+                "Grid import and export"
+                if len(meters) == 1
+                else f"Grid import and export · Meter …{meter_id[-4:].upper()}"
+            )
+            cards.append({
+                **self._usage_chart(entries[0].data[STATISTIC], title),
+                "entities": electricity_series(meter, available),
+                "expand_legend": True,
+                "min_y_axis": 0,
+            })
+            if rates := engie_tariff_rows(self.hass, meter, (entry.data[PRICE] for entry in entries)):
+                cards.append({
+                    "type": "entities",
+                    "title": "Current ENGIE tariffs",
+                    "show_header_toggle": False,
+                    "entities": rates,
+                    "grid_options": {"columns": "full"},
+                })
+        return cards
 
     @staticmethod
     def _usage_chart(source: str, title: str) -> dict[str, Any]:

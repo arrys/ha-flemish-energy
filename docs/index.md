@@ -32,6 +32,8 @@ The dashboard shows the current meter reading and daily usage from Home Assistan
 
 ### Electricity and gas
 
+Energy & Costs combines electricity import and export in one daily chart per configured Fluvius electricity meter. The chart separates high and low tariff readings when both are available for a direction, or shows that direction’s total when a full split is unavailable. The current ENGIE tariff panel uses the contract linked to the estimate when it matches the meter’s EAN. These are current prices in EUR/kWh.
+
 Each chart shows up to 30 days of published usage for one configured statistic. Choose either the electricity total or its individual tariff streams when setting up estimates. For grid export, choose the injection compensation rate. For dual-rate electricity, match each statistic to the corresponding rate and tariff schedule.
 
 An estimate multiplies the available readings for the displayed Brussels calendar date by the current contract rate. By default it follows the newest past day with usable published readings in the last 14 days. Enter a fixed day offset in the wizard to use that instead. Estimates refresh every 15 minutes and can change when new readings arrive or the rate changes. Historical billing, dynamic interval pricing, fixed fees, and capacity charges are outside the calculation.
