@@ -2,6 +2,8 @@ name: Publish Marketplace release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -17,7 +19,17 @@ jobs:
     steps:
       - name: Publish the mirrored tag
         run: |
-          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release create "$GITHUB_REF_NAME" --verify-tag \
-              --title "Flemish Energy $GITHUB_REF_NAME" --notes-from-tag
+          tag="$GITHUB_REF_NAME"
+          if [ "$GITHUB_REF_TYPE" = branch ]; then
+            version=$(gh api "repos/$GH_REPO/contents/custom_components/flemish_energy/manifest.json?ref=$GITHUB_SHA" \
+              --jq .content | base64 --decode | jq -er .version)
+            tag="v$version"
+            if ! gh api "repos/$GH_REPO/git/ref/tags/$tag" --silent; then
+              echo "No mirrored tag for $version yet."
+              exit 0
+            fi
+          fi
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --verify-tag \
+              --title "Flemish Energy $tag" --notes-from-tag
           fi
