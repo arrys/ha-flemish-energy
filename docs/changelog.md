@@ -1,5 +1,9 @@
 # Release notes
 
+## v0.4.7
+
+- Resolves the tariff table from the meter EAN if the saved ENGIE rate entity was renamed and there is only one matching agreement.
+
 ## v0.4.6
 
 - Shows estimated import cost and export compensation in euros, split by peak and off-peak tariff for the same published day.

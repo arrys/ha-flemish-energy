@@ -81,13 +81,24 @@ def engie_tariff_entities(
     """Resolve tariff entities for one agreement, meter and VAT basis."""
     registry = er.async_get(hass)
     ean = meter.split(":", 1)[1][:18]
+    meter_ean = re.compile(rf"(?<![0-9]){ean}(?![0-9])")
     contracts = set()
     for entity_id in selected_prices:
         anchor = registry.async_get(entity_id)
         if anchor and anchor.platform == "engie_be":
             match = ENGIE_PRICE.fullmatch(anchor.unique_id)
-            if match and re.search(rf"(?<![0-9]){ean}(?![0-9])", match["contract"]):
+            if match and meter_ean.search(match["contract"]):
                 contracts.add((anchor.config_entry_id, match["contract"], match["tax"]))
+    if not contracts:
+        for entry in hass.config_entries.async_entries("engie_be"):
+            for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+                match = ENGIE_PRICE.fullmatch(entity.unique_id)
+                if (
+                    match and not match["tax"]
+                    and entity.platform == "engie_be" and entity.domain == "sensor"
+                    and entity.disabled_by is None and meter_ean.search(match["contract"])
+                ):
+                    contracts.add((entry.entry_id, match["contract"], None))
     if len(contracts) != 1:
         return {}, None
 

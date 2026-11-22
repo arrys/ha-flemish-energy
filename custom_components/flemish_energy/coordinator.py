@@ -60,6 +60,13 @@ async def async_read_estimate(
         "usage_kwh": usage,
         "rate_eur_per_kwh": current_rate(hass, price_entity),
     }
+    if result["rate_eur_per_kwh"] is None and meter:
+        metric = statistic_id.removeprefix(f"{meter}_")
+        tariff = TARIFF_METRICS.get(metric)
+        if tariff is None and metric in ("consumption_total", "injection_total"):
+            tariff = ("offtake" if metric == "consumption_total" else "injection", "total_hours")
+        if tariff in rates:
+            result["rate_eur_per_kwh"] = current_rate(hass, rates[tariff])
     if day and tariff_sources:
         next_day = day + timedelta(days=1)
         costs = {}
