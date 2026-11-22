@@ -4,6 +4,8 @@ Flemish Energy brings your published Mijn Fluvius usage and current ENGIE Belgiu
 
 ## Install
 
+Home Assistant Marketplace can install Flemish Energy from a public GitHub mirror containing the root `hacs.json` and `custom_components/flemish_energy` directory. In Home Assistant, use **Settings → Marketplace → Add from link** and enter the mirror's GitHub URL. The GitLab release ZIP can be installed manually using the steps below.
+
 1. Use Home Assistant **2026.11 or later** with Recorder and Lovelace enabled. Extract the integration archive into the Home Assistant configuration directory so that `custom_components/flemish_energy/manifest.json` is present. Restart Home Assistant.
 2. Go to **Settings → Devices & services → Add integration → Flemish Energy**.
 3. Follow the wizard's links if you need to set up [ENGIE Belgium](https://www.home-assistant.io/integrations/engie_be/) or [Fluvius Energy](https://github.com/sander110419/Fluvius-home-assistant). ENGIE needs a dedicated login and a verification code. Fluvius needs your Mijn Fluvius login, meter EAN, and serial number. Select kWh for gas estimates.
