@@ -16,6 +16,7 @@ pages:
   script:
     - python -m pip install mkdocs==1.6.1
     - python -m mkdocs build --strict --site-dir public
+    - printf 'Pages URL %s\n' "$CI_PAGES_URL"
   pages: true
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
