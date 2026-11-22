@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## v0.4.6
 
 - Shows estimated import cost and export compensation in euros, split by peak and off-peak tariff for the same published day.
 
