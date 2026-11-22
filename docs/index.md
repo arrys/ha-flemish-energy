@@ -14,10 +14,10 @@ Use **Settings → Marketplace → Add from link** and enter the [Flemish Energy
 
 ## Connect accounts and create an estimate
 
-1. Open **Settings → Devices & services → Add integration → Flemish Energy → Connect a Mijn Fluvius meter**. Use a personal Mijn Fluvius login with an email address and password. In Mijn Fluvius, look under **Verbruik → Mijn EAN-lijst** for the 18-digit EAN. Enter the physical meter's serial number and choose electricity or gas.
-2. After the wizard verifies that the portal returns readings, select **Save meter and import history**. It continues to the estimate checks once Home Assistant loads the meter. Add gas and electricity as separate meters. Home Assistant stores the Fluvius login in its local integration configuration for recurring imports.
-3. Use the wizard's ENGIE setup link if necessary. This opens Home Assistant's built-in [ENGIE Belgium](https://www.home-assistant.io/integrations/engie_be/) integration, where you enter your dedicated ENGIE login and verification code.
-4. Under **Check sources and set up an estimate**, wait for the first meter import, then choose a historical statistic and its corresponding ENGIE contract rate from the available sensors. The estimate name can use the statistic's name. Review the test result and select **Save estimate**.
+1. Open **Settings → Devices & services → Add integration → Flemish Energy → Connect a Mijn Fluvius account and meter**. Use a personal Mijn Fluvius login with an email address and password. In Mijn Fluvius, look under **Verbruik → Mijn EAN-lijst** for the 18-digit EAN. Enter the physical meter's serial number and choose electricity or gas.
+2. After the wizard verifies that the portal returns readings, select **Save meter and import history**. Choose **Add another meter** to add gas or electricity under the same account. You only need to enter the second meter’s EAN, serial number, and type. Home Assistant stores the login locally for recurring imports.
+3. Select **Done with Fluvius → Continue to ENGIE**. Use the ENGIE setup link if necessary. This opens Home Assistant's built-in [ENGIE Belgium](https://www.home-assistant.io/integrations/engie_be/) integration, where you enter your dedicated ENGIE login and verification code.
+4. Return to the wizard and recheck the sources. Once the meters have imported readings, choose a historical statistic and its corresponding ENGIE contract rate. The estimate name can use the statistic's name. Review the test result and select **Save estimate**. To add another meter later, reopen Flemish Energy and choose **Add a meter to an existing Fluvius account**.
 5. Open **Energy & Costs** in the sidebar. Adding another estimate adds another usage chart. The charts use the selected Recorder statistics directly.
 
 ## Read the dashboard

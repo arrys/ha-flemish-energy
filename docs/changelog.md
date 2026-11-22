@@ -1,5 +1,9 @@
 # Release notes
 
+## Unreleased
+
+- Adds a step-by-step Fluvius-first setup with an **Add another meter** option that reuses the account login before continuing to ENGIE.
+
 ## v0.4.1
 
 - Continues from a saved Fluvius meter to the estimate checks.

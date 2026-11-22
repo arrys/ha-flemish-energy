@@ -32,6 +32,14 @@ METER_SCHEMA = probatio.Schema(
     }
 )
 
+METER_DETAILS_SCHEMA = probatio.Schema(
+    {
+        field: validator
+        for field, validator in METER_SCHEMA.schema.items()
+        if field.schema not in (CONF_EMAIL, CONF_PASSWORD)
+    }
+)
+
 
 async def async_check_meter(hass: HomeAssistant, data: dict) -> int:
     """Check the login and count the daily summaries available for the meter."""

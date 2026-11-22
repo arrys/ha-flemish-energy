@@ -33,7 +33,7 @@ from .fluvius.const import (
     CONF_METER_TYPE,
     CONF_PASSWORD,
 )
-from .meter_setup import METER_SCHEMA, async_check_meter
+from .meter_setup import METER_DETAILS_SCHEMA, METER_SCHEMA, async_check_meter
 
 LOGGER = logging.getLogger(__name__)
 RECORDER_ERRORS = (HomeAssistantError, SQLAlchemyError)
@@ -47,6 +47,19 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     _pair: dict[str, Any]
     _preview: dict[str, str]
+    _account_entry_id: str | None = None
+
+    def _meter_entries(self) -> list[config_entries.ConfigEntry]:
+        return [
+            entry for entry in self._async_current_entries()
+            if entry.data.get(ENTRY_KIND) == FLUVIUS_METER
+        ]
+
+    def _account_entry(self) -> config_entries.ConfigEntry | None:
+        return next(
+            (entry for entry in self._meter_entries() if entry.entry_id == self._account_entry_id),
+            None,
+        )
 
     def _has_loaded_entry(self, domain: str) -> bool:
         return any(
@@ -91,19 +104,21 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Start with a short checklist and let the user choose the next task."""
-        if user_input and user_input.get(AFTER_METER):
-            return await self.async_step_readiness()
+        if user_input and (entry_id := user_input.get(AFTER_METER)):
+            self._account_entry_id = entry_id
+            return await self.async_step_more_meters()
 
-        meters = sum(
-            entry.data.get(ENTRY_KIND) == FLUVIUS_METER
-            and entry.state is config_entries.ConfigEntryState.LOADED
-            for entry in self._async_current_entries()
-        )
+        meters = self._meter_entries()
+        options = ["meter"]
+        if meters:
+            options.insert(0, "choose_account")
+        if meters or self._has_loaded_entry("fluvius"):
+            options.append("readiness")
         return self.async_show_menu(
             step_id="user",
-            menu_options=["meter", "readiness"],
+            menu_options=options,
             description_placeholders={
-                "meter_count": str(meters),
+                "meter_count": str(len(meters)),
                 "engie_status": "Connected" if self._has_loaded_entry("engie_be") else "Needs setup",
             },
         )
@@ -113,6 +128,59 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         """Verify the Mijn Fluvius login and meter before saving."""
         return await self._async_meter_form("meter", user_input)
+
+    async def async_step_choose_account(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Reuse a configured account without asking for its password."""
+        accounts = {
+            entry.data[CONF_EMAIL].casefold(): entry
+            for entry in self._meter_entries()
+        }
+        if not accounts:
+            return await self.async_step_meter()
+        entries = {entry.entry_id: entry for entry in accounts.values()}
+        if user_input is None and len(entries) == 1:
+            self._account_entry_id = next(iter(entries))
+            return await self.async_step_add_meter()
+        if user_input and user_input["account"] in entries:
+            self._account_entry_id = user_input["account"]
+            return await self.async_step_add_meter()
+        return self.async_show_form(
+            step_id="choose_account",
+            data_schema=probatio.Schema({
+                probatio.Required("account"): selector.SelectSelector(
+                    selector.SelectSelectorConfig(options=[
+                        selector.SelectOptionDict(value=entry.entry_id, label=entry.data[CONF_EMAIL])
+                        for entry in entries.values()
+                    ])
+                )
+            }),
+            errors={"base": "account_removed"} if user_input else {},
+        )
+
+    async def async_step_more_meters(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Offer another Fluvius meter before moving on to ENGIE."""
+        account = self._account_entry()
+        if account is None:
+            return await self.async_step_user()
+        meters = sum(
+            entry.data[CONF_EMAIL].casefold() == account.data[CONF_EMAIL].casefold()
+            for entry in self._meter_entries()
+        )
+        return self.async_show_menu(
+            step_id="more_meters",
+            menu_options=["add_meter", "readiness"],
+            description_placeholders={"meter_count": str(meters)},
+        )
+
+    async def async_step_add_meter(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Collect only the meter details for the selected account."""
+        return await self._async_meter_form("add_meter", user_input)
 
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]
@@ -129,14 +197,27 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, step_id: str, user_input: dict[str, Any] | None
     ) -> config_entries.ConfigFlowResult:
         reauth_entry = self._get_reauth_entry() if step_id == "meter_reauth" else None
+        account = self._account_entry() if step_id == "add_meter" else None
+        if step_id == "add_meter" and account is None:
+            return await self.async_step_choose_account()
         errors = {}
         previous = reauth_entry.data if reauth_entry else {}
         defaults = previous if reauth_entry else getattr(self, "_meter", {})
         suggested = {key: value for key, value in defaults.items() if key != CONF_PASSWORD}
+        if account and not defaults:
+            meter_types = {
+                entry.data[CONF_METER_TYPE]
+                for entry in self._meter_entries()
+                if entry.data[CONF_EMAIL].casefold() == account.data[CONF_EMAIL].casefold()
+            }
+            if meter_types == {"electricity"}:
+                suggested[CONF_METER_TYPE] = "gas"
         if user_input is not None:
+            credentials = account.data if account else user_input
             data = {
                 **user_input,
-                CONF_EMAIL: user_input[CONF_EMAIL].strip(),
+                CONF_EMAIL: credentials[CONF_EMAIL].strip(),
+                CONF_PASSWORD: credentials[CONF_PASSWORD],
                 CONF_EAN: "".join(user_input[CONF_EAN].split()),
                 CONF_METER_SERIAL: user_input[CONF_METER_SERIAL].strip().upper(),
                 ENTRY_KIND: FLUVIUS_METER,
@@ -155,7 +236,7 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 try:
                     count = await async_check_meter(self.hass, data)
                 except FluviusAuthenticationError:
-                    errors["base"] = "fluvius_auth"
+                    errors["base"] = "saved_fluvius_auth" if account else "fluvius_auth"
                 except FluviusApiError:
                     errors["base"] = "fluvius_connection"
                 else:
@@ -166,11 +247,14 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     else:
                         self._meter = data
                         self._meter_count = count
+                        self._meter_edit_step = step_id
                         return await self.async_step_meter_verified()
 
         return self.async_show_form(
             step_id=step_id,
-            data_schema=self.add_suggested_values_to_schema(METER_SCHEMA, suggested),
+            data_schema=self.add_suggested_values_to_schema(
+                METER_DETAILS_SCHEMA if account else METER_SCHEMA, suggested
+            ),
             errors=errors,
         )
 
@@ -180,7 +264,7 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Show the successful verification before saving the meter."""
         return self.async_show_menu(
             step_id="meter_verified",
-            menu_options=["save_meter", "meter"],
+            menu_options=["save_meter", self._meter_edit_step],
             description_placeholders={
                 "reading_count": str(self._meter_count),
                 "serial_suffix": self._meter[CONF_METER_SERIAL][-4:],
@@ -210,7 +294,8 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             and entry.state is config_entries.ConfigEntryState.LOADED
         ):
             next_flow = await self.hass.config_entries.flow.async_init(
-                DOMAIN, context={"source": config_entries.SOURCE_USER}, data={AFTER_METER: True}
+                DOMAIN, context={"source": config_entries.SOURCE_USER},
+                data={AFTER_METER: entry.entry_id},
             )
             result["next_flow"] = (config_entries.FlowType.CONFIG_FLOW, next_flow["flow_id"])
         return result
