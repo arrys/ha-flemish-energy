@@ -151,10 +151,10 @@ class EnergyCostsDashboard(LovelaceConfig):
         available = {entry.data[STATISTIC] for entries in meters.values() for entry in entries}
         try:
             metadata = await get_instance(self.hass).async_add_executor_job(
-                list_statistic_ids, self.hass, candidates, "sum"
+                list_statistic_ids, self.hass, candidates
             )
-            available.update(item["statistic_id"] for item in metadata)
-        except (HomeAssistantError, SQLAlchemyError):
+            available.update(item["statistic_id"] for item in metadata if item["has_sum"])
+        except (HomeAssistantError, SQLAlchemyError, ValueError):
             LOGGER.debug("Could not discover related electricity statistics", exc_info=True)
 
         cards: list[dict[str, Any]] = [
