@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## v0.4.2
 
 - Adds a step-by-step Fluvius-first setup with an **Add another meter** option that reuses the account login before continuing to ENGIE.
 
