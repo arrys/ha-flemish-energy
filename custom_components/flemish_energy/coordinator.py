@@ -13,9 +13,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import DAYS_AGO, PRICE, PRICE_UNIT, STATISTIC
-from .estimate import day_window, finite_number, measured_usage
+from .estimate import day_window, finite_number, latest_published_usage, measured_usage
 
 LOGGER = logging.getLogger(__name__)
+LOOKBACK_DAYS = 14
 
 
 async def async_read_estimate(
@@ -24,7 +25,11 @@ async def async_read_estimate(
     """Read the same Recorder data and rate for setup and runtime."""
     statistic_id = pair[STATISTIC]
     price_entity = pair[PRICE]
-    day, start, end = day_window(datetime.now(UTC), int(pair[DAYS_AGO]))
+    now = datetime.now(UTC)
+    offset = pair.get(DAYS_AGO)
+    day, start, end = day_window(now, int(offset) if offset is not None else LOOKBACK_DAYS)
+    if offset is None:
+        today, end, _ = day_window(now, 0)
     results = await get_instance(hass).async_add_executor_job(
         statistics_during_period,
         hass,
@@ -35,6 +40,22 @@ async def async_read_estimate(
         None,
         {"change"},
     )
+    rows = results.get(statistic_id, [])
+    if offset is None:
+        latest = latest_published_usage(rows, day, today)
+        day, usage = latest if latest is not None else (None, None)
+    else:
+        usage = measured_usage(rows)
+
+    return {
+        "usage_date": day.isoformat() if day else None,
+        "usage_kwh": usage,
+        "rate_eur_per_kwh": current_rate(hass, price_entity),
+    }
+
+
+def current_rate(hass: HomeAssistant, price_entity: str) -> float | None:
+    """Get the finite EUR/kWh rate Home Assistant last received."""
     price_state = hass.states.get(price_entity)
     rate = None
     if (
@@ -42,12 +63,7 @@ async def async_read_estimate(
         and price_state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) == PRICE_UNIT
     ):
         rate = finite_number(price_state.state)
-
-    return {
-        "usage_date": day.isoformat(),
-        "usage_kwh": measured_usage(results.get(statistic_id, [])),
-        "rate_eur_per_kwh": rate,
-    }
+    return rate
 
 
 def create_coordinator(hass: HomeAssistant, entry: ConfigEntry) -> DataUpdateCoordinator:

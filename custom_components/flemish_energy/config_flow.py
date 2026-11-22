@@ -22,10 +22,9 @@ from .const import (
     FLUVIUS_METER,
     LABEL,
     PRICE,
-    PRICE_UNIT,
     STATISTIC,
 )
-from .coordinator import async_read_estimate
+from .coordinator import LOOKBACK_DAYS, async_read_estimate, current_rate
 from .fluvius.api import FluviusApiError, FluviusAuthenticationError
 from .fluvius.const import (
     CONF_EAN,
@@ -38,6 +37,7 @@ from .meter_setup import METER_SCHEMA, async_check_meter
 
 LOGGER = logging.getLogger(__name__)
 RECORDER_ERRORS = (HomeAssistantError, SQLAlchemyError)
+AFTER_METER = "after_meter"
 
 
 class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -53,6 +53,26 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             entry.state is config_entries.ConfigEntryState.LOADED
             for entry in self.hass.config_entries.async_entries(domain)
         )
+
+    def _available_rates(self) -> dict[str, str]:
+        """List usable ENGIE prices from loaded Home Assistant entries."""
+        registry = er.async_get(self.hass)
+        rates = {}
+        for entry in self.hass.config_entries.async_entries("engie_be"):
+            if entry.state is not config_entries.ConfigEntryState.LOADED:
+                continue
+            for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+                state = self.hass.states.get(entity.entity_id)
+                if (
+                    entity.domain != "sensor"
+                    or state is None
+                    or current_rate(self.hass, entity.entity_id) is None
+                ):
+                    continue
+                if entity.translation_key and "epex" in entity.translation_key:
+                    continue
+                rates[entity.entity_id] = state.name
+        return rates
 
     async def _async_statistics(self) -> dict[str, str]:
         metadata = await get_instance(self.hass).async_add_executor_job(
@@ -71,6 +91,9 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Start with a short checklist and let the user choose the next task."""
+        if user_input and user_input.get(AFTER_METER):
+            return await self.async_step_readiness()
+
         meters = sum(
             entry.data.get(ENTRY_KIND) == FLUVIUS_METER
             and entry.state is config_entries.ConfigEntryState.LOADED
@@ -177,11 +200,27 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             title=f"Fluvius {data[CONF_METER_TYPE]} · {serial[-4:]}", data=data
         )
 
+    async def async_on_create_entry(
+        self, result: config_entries.ConfigFlowResult
+    ) -> config_entries.ConfigFlowResult:
+        """Continue onboarding from a successfully loaded meter."""
+        entry = result["result"]
+        if (
+            entry.data.get(ENTRY_KIND) == FLUVIUS_METER
+            and entry.state is config_entries.ConfigEntryState.LOADED
+        ):
+            next_flow = await self.hass.config_entries.flow.async_init(
+                DOMAIN, context={"source": config_entries.SOURCE_USER}, data={AFTER_METER: True}
+            )
+            result["next_flow"] = (config_entries.FlowType.CONFIG_FLOW, next_flow["flow_id"])
+        return result
+
     async def async_step_readiness(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Explain which source has to be connected before pairing."""
         engie_ready = self._has_loaded_entry("engie_be")
+        rates = self._available_rates()
         statistics = {}
         errors = {}
         try:
@@ -195,14 +234,17 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "providers_not_ready"
             elif not statistics:
                 errors["base"] = "no_statistics"
+            elif not rates:
+                errors["base"] = "no_rates"
             else:
-                return self._show_pair_form(statistics)
+                return self._show_pair_form(statistics, rates)
 
         return self.async_show_form(
             step_id="readiness",
             data_schema=probatio.Schema({}),
             description_placeholders={
                 "engie_status": "Loaded" if engie_ready else "Needs setup or repair",
+                "rate_count": str(len(rates)),
                 "statistic_count": "—" if errors.get("base") == "recorder_unavailable" else str(len(statistics)),
             },
             errors=errors,
@@ -217,33 +259,34 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except RECORDER_ERRORS:
             LOGGER.debug("Could not refresh Fluvius statistics", exc_info=True)
             return await self.async_step_readiness()
-        if not statistics:
+        rates = self._available_rates()
+        if not statistics or not rates:
             return await self.async_step_readiness()
         if user_input is None:
-            return self._show_pair_form(statistics, getattr(self, "_pair", None))
+            return self._show_pair_form(statistics, rates, getattr(self, "_pair", None))
 
         errors = {}
         statistic_id = user_input[STATISTIC]
-        label = user_input[LABEL].strip()
-        entity = er.async_get(self.hass).async_get(user_input[PRICE])
+        label = user_input.get(LABEL, "").strip() or statistics.get(statistic_id)
         if statistic_id not in statistics:
             errors[STATISTIC] = "invalid_statistic"
-        if not label:
-            errors[LABEL] = "empty_label"
-        if entity is None or entity.platform != "engie_be":
+        if user_input[PRICE] not in rates:
             errors[PRICE] = "invalid_price"
-        if user_input[DAYS_AGO] not in range(1, 15):
+        offset = user_input.get(DAYS_AGO)
+        if offset is not None and offset not in range(1, LOOKBACK_DAYS + 1):
             errors[DAYS_AGO] = "invalid_days"
         if errors:
-            return self._show_pair_form(statistics, user_input, errors)
+            return self._show_pair_form(statistics, rates, user_input, errors)
 
-        pair = {**user_input, LABEL: label, DAYS_AGO: int(user_input[DAYS_AGO])}
+        pair = {**user_input, LABEL: label}
+        if offset is not None:
+            pair[DAYS_AGO] = int(offset)
         try:
             reading = await async_read_estimate(self.hass, pair)
         except RECORDER_ERRORS:
             LOGGER.debug("Could not read the selected Fluvius statistic", exc_info=True)
             return self._show_pair_form(
-                statistics, user_input, {"base": "recorder_unavailable"}
+                statistics, rates, user_input, {"base": "recorder_unavailable"}
             )
 
         usage = reading["usage_kwh"]
@@ -253,13 +296,15 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if rate is None:
             errors[PRICE] = "price_unavailable"
         if errors:
-            return self._show_pair_form(statistics, user_input, errors)
+            return self._show_pair_form(statistics, rates, user_input, errors)
 
         self._pair = pair
         self._preview = {
             "label": label,
             "day": reading["usage_date"],
             "usage": f"{usage:.3f}",
+            "statistic_name": statistics[statistic_id],
+            "rate_name": rates[user_input[PRICE]],
             "rate": str(rate),
             "estimate": f"{usage * rate:.2f}",
         }
@@ -268,12 +313,13 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def _show_pair_form(
         self,
         statistics: Mapping[str, str],
+        rates: Mapping[str, str],
         user_input: dict[str, Any] | None = None,
         errors: dict[str, str] | None = None,
     ) -> config_entries.ConfigFlowResult:
         schema = probatio.Schema(
             {
-                probatio.Required(LABEL): selector.TextSelector(),
+                probatio.Optional(LABEL): selector.TextSelector(),
                 probatio.Required(STATISTIC): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=[
@@ -284,18 +330,19 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         ]
                     )
                 ),
-                probatio.Required(PRICE): selector.EntitySelector(
-                    selector.EntitySelectorConfig(
-                        filter=selector.EntityFilterSelectorConfig(
-                            domain="sensor",
-                            integration="engie_be",
-                            unit_of_measurement=PRICE_UNIT,
-                        )
+                probatio.Required(PRICE): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            selector.SelectOptionDict(value=key, label=name)
+                            for key, name in sorted(
+                                rates.items(), key=lambda item: (item[1].casefold(), item[0])
+                            )
+                        ]
                     )
                 ),
-                probatio.Required(DAYS_AGO, default=3): selector.NumberSelector(
+                probatio.Optional(DAYS_AGO): selector.NumberSelector(
                     selector.NumberSelectorConfig(
-                        min=1, max=14, step=1, mode=selector.NumberSelectorMode.BOX
+                        min=1, max=LOOKBACK_DAYS, step=1, mode=selector.NumberSelectorMode.BOX
                     )
                 ),
             }

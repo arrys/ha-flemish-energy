@@ -1,5 +1,11 @@
 # Release notes
 
+## Unreleased
+
+- Continues from a saved Fluvius meter to the estimate checks.
+- Discovers available ENGIE rates and finds the latest usable Fluvius day through Home Assistant.
+- Shows the source names in the preview and preserves fixed offsets for existing estimates.
+
 ## v0.4.0
 
 - Imports Mijn Fluvius meter history directly from Flemish Energy, with a guided connection test and reauthentication.

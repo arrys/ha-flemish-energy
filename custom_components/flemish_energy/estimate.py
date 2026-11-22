@@ -30,3 +30,22 @@ def measured_usage(rows) -> float | None:
     if not changes or None in changes:
         return None
     return fsum(changes)
+
+
+def latest_published_usage(
+    rows, earliest: date, today: date
+) -> tuple[date, float] | None:
+    """Find the newest past Brussels day with usable Recorder changes."""
+    by_day = {}
+    for row in rows:
+        timestamp = finite_number(row.get("start"))
+        if timestamp is None:
+            continue
+        day = datetime.fromtimestamp(timestamp, BRUSSELS).date()
+        if earliest <= day < today:
+            by_day.setdefault(day, []).append(row)
+
+    for day in sorted(by_day, reverse=True):
+        if (usage := measured_usage(by_day[day])) is not None:
+            return day, usage
+    return None

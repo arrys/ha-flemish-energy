@@ -1,7 +1,7 @@
 """Checks for date boundaries and published usage calculations."""
 
 import ast
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 import importlib.util
 import json
 from pathlib import Path
@@ -30,6 +30,26 @@ class EstimateTests(unittest.TestCase):
         self.assertIsNone(estimate.finite_number("unavailable"))
         self.assertIsNone(estimate.finite_number("NaN"))
         self.assertEqual(estimate.finite_number("-0.05"), -0.05)
+
+    def test_latest_day_uses_brussels_time_and_preserves_zero(self):
+        rows = [
+            {"start": datetime(2026, 3, 28, 23, tzinfo=UTC).timestamp(), "change": 0},
+            {"start": datetime(2026, 3, 29, 22, tzinfo=UTC).timestamp(), "change": 8},
+        ]
+        self.assertEqual(
+            estimate.latest_published_usage(rows, date(2026, 3, 16), date(2026, 3, 30)),
+            (date(2026, 3, 29), 0),
+        )
+
+    def test_latest_day_falls_back_when_newer_rows_are_unusable(self):
+        rows = [
+            {"start": datetime(2026, 11, 20, 10, tzinfo=UTC).timestamp(), "change": 4},
+            {"start": datetime(2026, 11, 21, 10, tzinfo=UTC).timestamp(), "change": None},
+        ]
+        self.assertEqual(
+            estimate.latest_published_usage(rows, date(2026, 11, 8), date(2026, 11, 22)),
+            (date(2026, 11, 20), 4),
+        )
 
     def test_component_python_and_json_parse(self):
         for file in COMPONENT.rglob("*.py"):

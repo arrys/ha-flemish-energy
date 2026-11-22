@@ -33,7 +33,7 @@
       },
       "meter_verified": {
         "title": "Meter verified",
-        "description": "Mijn Fluvius returned **{reading_count}** daily summaries for meter ending in **{serial_suffix}**. Save the meter to import its history. After the first import, open Flemish Energy again and choose **Check sources and set up an estimate**.",
+        "description": "Mijn Fluvius returned **{reading_count}** daily summaries for meter ending in **{serial_suffix}**. Save the meter to import its history and continue to the estimate checks.",
         "menu_options": {
           "save_meter": "Save meter and import history",
           "meter": "Edit meter details"
@@ -41,11 +41,11 @@
       },
       "readiness": {
         "title": "Check readings and contract pricing",
-        "description": "- **Imported kWh statistics** — {statistic_count} found. If the count is zero, wait for the meter's first import.\n- **ENGIE Belgium** — {engie_status}. [Open the built-in ENGIE setup](https://my.home-assistant.io/redirect/config_flow_start/?domain=engie_be) if needed.\n\nContinue to recheck both sources and choose the statistic and rate."
+        "description": "- **Imported kWh statistics** — {statistic_count} found. If the count is zero, wait for the meter's first import.\n- **ENGIE Belgium** — {engie_status}, {rate_count} usable rates. [Open the built-in ENGIE setup](https://my.home-assistant.io/redirect/config_flow_start/?domain=engie_be) if needed.\n\nContinue to recheck both sources and choose the statistic and rate."
       },
       "pair": {
         "title": "Select and test your sources",
-        "description": "Pair one published Mijn Fluvius statistic with its matching ENGIE contract rate. Choose a day far enough back for Fluvius to publish it.",
+        "description": "Choose the Fluvius stream and its matching ENGIE contract rate for the same address. The wizard checks Recorder for the latest published day unless you choose a fixed offset.",
         "data": {
           "label": "Estimate name",
           "statistic_id": "Fluvius historical statistic",
@@ -53,13 +53,14 @@
           "days_ago": "Days before today"
         },
         "data_description": {
-          "label": "For example, Electricity import, Solar injection, or Gas use.",
-          "price_entity": "Select the matching import, injection, or gas rate in EUR/kWh."
+          "label": "Leave blank to use the name of your Fluvius statistic.",
+          "price_entity": "Select the matching import, injection, or gas rate. Only available rates in EUR/kWh are listed.",
+          "days_ago": "Leave blank to follow the most recent published day in the last 14 days."
         }
       },
       "review": {
         "title": "Review your test result",
-        "description": "**{label}**\n\n- Fluvius usage on {day}: **{usage} kWh**\n- Current ENGIE rate: **{rate} EUR/kWh**\n- Estimated amount: **€{estimate}**\n\nThe test read the selected sources successfully. Check that the meter and contract rate correspond before saving. After saving, open **Energy & Costs** in the sidebar.",
+        "description": "**{label}**\n\n- {statistic_name} on {day}: **{usage} kWh**\n- {rate_name}: **{rate} EUR/kWh**\n- Estimated amount: **€{estimate}**\n\nCheck that both sources correspond before saving. After saving, open **Energy & Costs** in the sidebar.",
         "menu_options": {
           "save": "Save estimate",
           "pair": "Edit sources and retest"
@@ -67,7 +68,7 @@
       }
     },
     "error": {
-      "empty_label": "Enter a name.",
+      "no_rates": "ENGIE is loaded but has no usable contract rates in EUR/kWh yet. Check its sensors and try again.",
       "invalid_statistic": "Select an available Fluvius statistic in kWh.",
       "invalid_price": "Select an ENGIE rate sensor with the EUR/kWh unit.",
       "invalid_days": "Enter a whole number from 1 to 14.",

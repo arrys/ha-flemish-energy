@@ -27,7 +27,7 @@ ESTIMATES = """Each estimate values published usage for the displayed day at the
 
 {% if has_value(entity) and usage is not none and rate is not none %}
 **€{{ '%.2f' | format(states(entity) | float) }}** · {{ usage | round(3) }} kWh × €{{ rate }}/kWh
-{% elif usage is none and day %}
+{% elif usage is none and (day or rate is not none) %}
 Waiting for published readings.
 {% elif rate is none and day %}
 Waiting for the ENGIE rate.

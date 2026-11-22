@@ -15,16 +15,16 @@ Use **Settings → Marketplace → Add from link** and enter the [Flemish Energy
 ## Connect accounts and create an estimate
 
 1. Open **Settings → Devices & services → Add integration → Flemish Energy → Connect a Mijn Fluvius meter**. Use a personal Mijn Fluvius login with an email address and password. In Mijn Fluvius, look under **Verbruik → Mijn EAN-lijst** for the 18-digit EAN. Enter the physical meter's serial number and choose electricity or gas.
-2. After the wizard verifies that the portal returns readings, select **Save meter and import history**. Add gas and electricity as separate meters. Home Assistant stores the Fluvius login in its local integration configuration for recurring imports.
+2. After the wizard verifies that the portal returns readings, select **Save meter and import history**. It continues to the estimate checks once Home Assistant loads the meter. Add gas and electricity as separate meters. Home Assistant stores the Fluvius login in its local integration configuration for recurring imports.
 3. Use the wizard's ENGIE setup link if necessary. This opens Home Assistant's built-in [ENGIE Belgium](https://www.home-assistant.io/integrations/engie_be/) integration, where you enter your dedicated ENGIE login and verification code.
-4. Open **Flemish Energy → Check sources and set up an estimate**. Wait for the first meter import, then choose a historical statistic and its corresponding ENGIE contract rate. Review the test result and select **Save estimate**.
+4. Under **Check sources and set up an estimate**, wait for the first meter import, then choose a historical statistic and its corresponding ENGIE contract rate from the available sensors. The estimate name can use the statistic's name. Review the test result and select **Save estimate**.
 5. Open **Energy & Costs** in the sidebar. Adding another estimate adds another usage chart. The charts use the selected Recorder statistics directly.
 
 ## Read the dashboard
 
 Each chart shows up to 30 days of published usage for one configured statistic. Choose either the electricity total or its individual tariff streams when setting up estimates. For grid export, choose the injection compensation rate. For dual-rate electricity, match each statistic to the corresponding rate and tariff schedule.
 
-An estimate multiplies the available readings for the displayed Brussels calendar date by the current contract rate. The default date is three days ago to allow time for publication. Estimates refresh every 15 minutes and can change when new readings arrive or the rate changes. Historical billing, dynamic interval pricing, fixed fees, and capacity charges are outside the calculation.
+An estimate multiplies the available readings for the displayed Brussels calendar date by the current contract rate. By default it follows the newest past day with usable published readings in the last 14 days. Enter a fixed day offset in the wizard to use that instead. Estimates refresh every 15 minutes and can change when new readings arrive or the rate changes. Historical billing, dynamic interval pricing, fixed fees, and capacity charges are outside the calculation.
 
 The integration manages the sidebar entry while at least one estimate is loaded. The default path is `/flemish-energy/energy`. If that path is in use, it selects an available suffix. Add another dashboard separately if you want to customize the layout.
 
