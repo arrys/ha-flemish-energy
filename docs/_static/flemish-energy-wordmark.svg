@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 176">
+  <rect width="560" height="176" rx="24" fill="#15343a"/>
+  <g transform="translate(19 8) scale(.62)">
+    <path d="M38 179a90 90 0 0 1 180 0" fill="none" stroke="#8adcd2" stroke-width="16" stroke-linecap="round"/>
+    <path d="m144 65-58 78h36l-10 48 58-78h-36z" fill="#ffe26e" stroke="#15343a" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M79 208h98" fill="none" stroke="#8adcd2" stroke-width="12" stroke-linecap="round"/>
+  </g>
+  <text x="183" y="79" font-family="DejaVu Sans, sans-serif" font-size="49" font-weight="bold" fill="#f3faf8">Flemish</text>
+  <text x="183" y="132" font-family="DejaVu Sans, sans-serif" font-size="49" font-weight="bold" fill="#8adcd2">Energy</text>
+</svg>
