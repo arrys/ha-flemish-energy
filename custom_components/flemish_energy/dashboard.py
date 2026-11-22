@@ -1,5 +1,6 @@
 """Provide a managed Lovelace view for verified Flemish Energy sources."""
 
+import json
 import logging
 from typing import Any
 
@@ -12,6 +13,7 @@ from homeassistant.components.recorder.statistics import list_statistic_ids
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.json import cached_json_fragment
 
 from .const import DOMAIN, ENTRY_KIND, PIDPA_METER, PRICE, STATISTIC, WATER_SENSOR
@@ -47,6 +49,29 @@ Estimate unavailable.
 {% else %}
 Add a meter and rate through the Flemish Energy setup wizard.
 {% endfor %}
+"""
+
+TARIFF_ESTIMATES = """\
+{% set selected = namespace(entity=none) %}
+{% for entity in ENTITY_IDS %}
+{% if selected.entity is none and state_attr(entity, 'electricity_costs') is mapping %}
+{% set selected.entity = entity %}
+{% endif %}
+{% endfor %}
+{% if selected.entity %}
+{% set amounts = state_attr(selected.entity, 'electricity_costs') %}
+{% macro euros(metric) -%}
+{{ '€%.2f' | format(amounts[metric]) if metric in amounts else 'Unavailable' }}
+{%- endmacro %}
+**{{ state_attr(selected.entity, 'usage_date') }}** · Estimated at current ENGIE rates{% if state_attr(selected.entity, 'electricity_costs_excl_vat') %} excl. VAT{% endif %}.
+
+| Tariff | Import cost | Export compensation |
+| --- | ---: | ---: |
+| Day / peak | {{ euros('consumption_high') }} | {{ euros('injection_high') }} |
+| Night / off-peak | {{ euros('consumption_low') }} | {{ euros('injection_low') }} |
+{% else %}
+Waiting for readings and matching ENGIE tariff rates.
+{% endif %}
 """
 
 
@@ -174,6 +199,21 @@ class EnergyCostsDashboard(LovelaceConfig):
                 "min_y_axis": 0,
             })
             if rates := engie_tariff_rows(self.hass, meter, (entry.data[PRICE] for entry in entries)):
+                registry = er.async_get(self.hass)
+                estimate_entities = [
+                    entity_id
+                    for entry in entries
+                    if (entity_id := registry.async_get_entity_id(
+                        "sensor", DOMAIN, f"{entry.entry_id}_estimate"
+                    ))
+                ]
+                if estimate_entities:
+                    cards.append({
+                        "type": "markdown",
+                        "title": "Estimated electricity costs and compensation",
+                        "content": TARIFF_ESTIMATES.replace("ENTITY_IDS", json.dumps(estimate_entities)),
+                        "grid_options": {"columns": "full"},
+                    })
                 cards.append({
                     "type": "entities",
                     "title": "Current ENGIE tariffs",

@@ -1,5 +1,9 @@
 # Release notes
 
+## Unreleased
+
+- Shows estimated import cost and export compensation in euros, split by peak and off-peak tariff for the same published day.
+
 ## v0.4.5
 
 - Fixes the dashboard load error when looking up the related electricity statistics in Home Assistant Recorder.

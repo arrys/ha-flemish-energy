@@ -32,6 +32,12 @@ RATE_LABELS = {
     ("injection", "offpeak"): "Export · Night / off-peak",
     ("injection", "total_hours"): "Export · Single rate",
 }
+TARIFF_METRICS = {
+    "consumption_high": ("offtake", "peak"),
+    "consumption_low": ("offtake", "offpeak"),
+    "injection_high": ("injection", "peak"),
+    "injection_low": ("injection", "offpeak"),
+}
 
 
 def electricity_meter(statistic_id: str) -> str | None:
@@ -61,6 +67,18 @@ def engie_tariff_rows(
     hass: HomeAssistant, meter: str, selected_prices: Iterable[str]
 ) -> list[dict[str, str]]:
     """Find enabled rates from the selected ENGIE agreement and Fluvius EAN."""
+    rates, tax = engie_tariff_entities(hass, meter, selected_prices)
+    return [
+        {"entity": rates[key], "name": label + (" (excl. VAT)" if tax else "")}
+        for key, label in RATE_LABELS.items()
+        if key in rates
+    ]
+
+
+def engie_tariff_entities(
+    hass: HomeAssistant, meter: str, selected_prices: Iterable[str]
+) -> tuple[dict[tuple[str, str], str], str | None]:
+    """Resolve tariff entities for one agreement, meter and VAT basis."""
     registry = er.async_get(hass)
     ean = meter.split(":", 1)[1][:18]
     contracts = set()
@@ -71,11 +89,11 @@ def engie_tariff_rows(
             if match and re.search(rf"(?<![0-9]){ean}(?![0-9])", match["contract"]):
                 contracts.add((anchor.config_entry_id, match["contract"], match["tax"]))
     if len(contracts) != 1:
-        return []
+        return {}, None
 
     entry_id, contract, tax = contracts.pop()
     if entry_id is None:
-        return []
+        return {}, None
     rates = {}
     for entity in er.async_entries_for_config_entry(registry, entry_id):
         if (
@@ -87,8 +105,4 @@ def engie_tariff_rows(
         match = ENGIE_PRICE.fullmatch(entity.unique_id)
         if match and match["contract"] == contract and match["tax"] == tax:
             rates[match["direction"].lower(), match["slot"].lower()] = entity.entity_id
-    return [
-        {"entity": rates[key], "name": label + (" (excl. VAT)" if tax else "")}
-        for key, label in RATE_LABELS.items()
-        if key in rates
-    ]
+    return rates, tax
