@@ -1,0 +1,6 @@
+site_name: Flemish Energy for Home Assistant
+theme:
+  name: mkdocs
+nav:
+  - Installation and troubleshooting: index.md
+  - Release notes: changelog.md
