@@ -5,9 +5,9 @@
         "title": "Step 1 of 3 · Connect Mijn Fluvius",
         "description": "Start with Mijn Fluvius. You can add your electricity and gas meters before moving on to ENGIE.\n\n- **Fluvius meters configured** — {meter_count}.\n- **ENGIE Belgium** — {engie_status}.",
         "menu_options": {
-          "meter": "Connect a Mijn Fluvius account and meter",
+          "login": "Sign in to a Mijn Fluvius account",
           "choose_account": "Add a meter to an existing Fluvius account",
-          "readiness": "Continue to ENGIE setup"
+          "provider": "Continue to energy provider"
         }
       },
       "choose_account": {
@@ -17,20 +17,17 @@
           "account": "Saved Fluvius account"
         }
       },
-      "meter": {
-        "title": "Step 1 of 3 · Add your first meter",
-        "description": "Use a personal Mijn Fluvius account with email/password sign-in. In Mijn Fluvius, open **Verbruik → Mijn EAN-lijst** to find the meter's EAN. Use the physical meter's serial number, which is separate from the EAN. Set up electricity and gas as separate meters.",
+      "login": {
+        "title": "Step 1 of 3 · Sign in to Mijn Fluvius",
+        "description": "Use a personal Mijn Fluvius account with email and password sign-in. After we verify the login, you can add the meters this account can access.",
         "data": {
           "email": "Mijn Fluvius email",
-          "password": "Mijn Fluvius password",
-          "ean": "18-digit meter EAN",
-          "meter_serial": "Meter serial number",
-          "meter_type": "Meter type"
+          "password": "Mijn Fluvius password"
         }
       },
       "add_meter": {
-        "title": "Step 2 of 3 · Add another Fluvius meter",
-        "description": "The wizard uses the same Mijn Fluvius login. Enter the other meter’s own EAN and serial number. For a gas meter, select **Gas**.",
+        "title": "Step 2 of 3 · Add a Fluvius meter",
+        "description": "In Mijn Fluvius, open **Verbruik → Mijn EAN-lijst** to find the EAN. Enter the physical meter’s serial number and select **Electricity** or **Gas**. You can add more meters after saving.",
         "data": {
           "ean": "18-digit meter EAN",
           "meter_serial": "Meter serial number",
@@ -53,7 +50,6 @@
         "description": "Mijn Fluvius returned **{reading_count}** daily summaries for meter ending in **{serial_suffix}**. Save it to import history and choose what to do next.",
         "menu_options": {
           "save_meter": "Save meter and import history",
-          "meter": "Edit meter details",
           "add_meter": "Edit meter details"
         }
       },
@@ -62,7 +58,14 @@
         "description": "**{meter_count}** meter(s) saved with this Mijn Fluvius account. Add any remaining electricity or gas meters before proceeding.",
         "menu_options": {
           "add_meter": "Add another meter",
-          "readiness": "Done with Fluvius · Continue to ENGIE"
+          "provider": "Done with meters · Choose energy provider"
+        }
+      },
+      "provider": {
+        "title": "Step 3 of 3 · Choose your energy provider",
+        "description": "Choose the supplier whose contract rates you want to use. ENGIE Belgium is currently supported.",
+        "data": {
+          "provider": "Energy provider"
         }
       },
       "readiness": {
@@ -79,7 +82,7 @@
           "days_ago": "Days before today"
         },
         "data_description": {
-          "label": "Leave blank to use the name of your Fluvius statistic.",
+          "label": "Defaults to Energy. Change it if you want a distinct name for this estimate.",
           "price_entity": "Select the matching import, injection, or gas rate. Only available rates in EUR/kWh are listed.",
           "days_ago": "Leave blank to follow the most recent published day in the last 14 days."
         }
@@ -107,6 +110,7 @@
       "invalid_serial": "Enter the meter serial number using letters, digits, or hyphens.",
       "wrong_meter": "Use the same EAN, serial number, and meter type as the existing entry.",
       "fluvius_auth": "Mijn Fluvius rejected the sign-in. Try your personal portal email and password.",
+      "fluvius_login_connection": "Couldn't verify the Mijn Fluvius login. Try again once the portal is reachable.",
       "saved_fluvius_auth": "Mijn Fluvius rejected the saved login. Update the account on its existing meter entry or start a new connection.",
       "account_removed": "That Fluvius account is no longer available. Choose another account.",
       "fluvius_connection": "Couldn't check this meter. Verify the EAN and serial number in Mijn Fluvius and try again.",
