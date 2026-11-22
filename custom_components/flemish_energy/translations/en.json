@@ -1,0 +1,46 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect your energy accounts",
+        "description": "Check both accounts before choosing a meter and rate.\n\n- **ENGIE Belgium** — {engie_status}. [Open ENGIE setup](https://my.home-assistant.io/redirect/config_flow_start/?domain=engie_be) in another tab if needed. Have your dedicated ENGIE email, password, and the verification code from SMS or email ready.\n- **Fluvius Energy** — {fluvius_status}. [Install Fluvius Energy](https://github.com/sander110419/Fluvius-home-assistant) if needed, then [open Fluvius setup](https://my.home-assistant.io/redirect/config_flow_start/?domain=fluvius). Have your Mijn Fluvius email, password, meter EAN, and meter serial number ready. Choose kWh for gas estimates.\n- **Imported kWh statistics** — {statistic_count} found.\n\nIf a provider is already configured, check its entry under **Settings → Devices & services**. Once the initial Fluvius import finishes, return here and continue to run the checks again."
+      },
+      "pair": {
+        "title": "Select and test your sources",
+        "description": "Pair one published Mijn Fluvius statistic with its matching ENGIE contract rate. Choose a day far enough back for Fluvius to publish it.",
+        "data": {
+          "label": "Estimate name",
+          "statistic_id": "Fluvius historical statistic",
+          "price_entity": "ENGIE contract rate",
+          "days_ago": "Days before today"
+        },
+        "data_description": {
+          "label": "For example, Electricity import, Solar injection, or Gas use.",
+          "price_entity": "Select the matching import, injection, or gas rate in EUR/kWh."
+        }
+      },
+      "review": {
+        "title": "Review your test result",
+        "description": "**{label}**\n\n- Fluvius usage on {day}: **{usage} kWh**\n- Current ENGIE rate: **{rate} EUR/kWh**\n- Estimated amount: **€{estimate}**\n\nThe test read the selected sources successfully. Check that the meter and contract rate correspond before saving. After saving, open **Energy & Costs** in the sidebar.",
+        "menu_options": {
+          "save": "Save estimate",
+          "pair": "Edit sources and retest"
+        }
+      }
+    },
+    "error": {
+      "empty_label": "Enter a name.",
+      "invalid_statistic": "Select an available Fluvius statistic in kWh.",
+      "invalid_price": "Select an ENGIE rate sensor with the EUR/kWh unit.",
+      "invalid_days": "Enter a whole number from 1 to 14.",
+      "providers_not_ready": "Complete setup or repair of both energy integrations, then continue again.",
+      "no_statistics": "The first Fluvius import has not produced any historical kWh statistics yet. Wait for it to finish, then continue again.",
+      "recorder_unavailable": "The Recorder check failed. Check Recorder in Home Assistant and try again.",
+      "no_readings_for_day": "No usable readings are published for this day. Try a day further back or check the meter in Mijn Fluvius.",
+      "price_unavailable": "This ENGIE rate is unavailable or has the wrong unit. Choose an active EUR/kWh rate or repair the ENGIE account."
+    },
+    "abort": {
+      "already_configured": "An estimate already uses this Fluvius statistic."
+    }
+  }
+}
