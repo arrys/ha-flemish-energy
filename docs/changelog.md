@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## v0.4.1
 
 - Continues from a saved Fluvius meter to the estimate checks.
 - Discovers available ENGIE rates and finds the latest usable Fluvius day through Home Assistant.
