@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## v0.4.4
 
 - Combines import and export for each Fluvius electricity meter in a chart with day and night tariff series, alongside matching current ENGIE rates.
 
