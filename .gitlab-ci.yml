@@ -14,8 +14,8 @@ verify:
 pages:
   stage: publish
   script:
-    - python -m pip install mkdocs==1.6.1
-    - python -m mkdocs build --strict --site-dir public
+    - python -m pip install -r docs/requirements.txt
+    - python -m sphinx -W -b html docs public
     - printf 'Pages URL %s\n' "$CI_PAGES_URL"
   pages: true
   rules:
