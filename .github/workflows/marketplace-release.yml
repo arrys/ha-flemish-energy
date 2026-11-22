@@ -31,5 +31,6 @@ jobs:
           fi
           if ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" --verify-tag \
-              --title "Flemish Energy $tag" --notes-from-tag
+              --title "Flemish Energy $tag" \
+              --notes "See the [GitLab release notes](https://git.rys.app/arrys/ha-flemish-energy/-/releases/$tag)."
           fi
