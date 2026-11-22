@@ -9,11 +9,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.json import cached_json_fragment
 
-from .const import DOMAIN, STATISTIC
+from .const import DOMAIN, ENTRY_KIND, PIDPA_METER, STATISTIC, WATER_SENSOR
 
 TITLE = "Energy & Costs"
 PATH = "flemish-energy"
 ICON = "mdi:transmission-tower"
+WATER_ICON = "mdi:water"
 
 ESTIMATES = """Each estimate values published usage for the displayed day at the current contract rate.
 
@@ -68,19 +69,49 @@ class EnergyCostsDashboard(LovelaceConfig):
         return {"mode": self.mode, "views": 1}
 
     async def async_load(self, force: bool) -> dict[str, Any]:
-        charts = [
-            {
-                "type": "statistics-graph",
-                "title": entry.title,
-                "entities": [{"entity": entry.data[STATISTIC], "name": entry.title}],
-                "chart_type": "bar",
-                "stat_types": ["change"],
-                "period": "day",
-                "days_to_show": 30,
-                "grid_options": {"columns": "full"},
-            }
-            for entry in sorted(self.sources.values(), key=lambda item: item.title.casefold())
-        ]
+        charts = []
+        water_cards = []
+        for entry in sorted(self.sources.values(), key=lambda item: item.title.casefold()):
+            if entry.data.get(ENTRY_KIND) == PIDPA_METER:
+                entity_id = entry.data[WATER_SENSOR]
+                water_cards.append({
+                    "type": "tile", "entity": entity_id, "name": entry.title, "icon": WATER_ICON,
+                })
+                water_cards.append(self._usage_chart(entity_id, entry.title))
+            else:
+                charts.append(self._usage_chart(entry.data[STATISTIC], entry.title))
+
+        sections = []
+        if charts:
+            sections.extend((
+                {
+                    "type": "grid",
+                    "cards": [
+                        {"type": "heading", "heading": "Published usage · 30 days"},
+                        *charts,
+                    ],
+                },
+                {
+                    "type": "grid",
+                    "cards": [
+                        {"type": "heading", "heading": "Current-rate estimates"},
+                        {
+                            "type": "markdown",
+                            "content": ESTIMATES,
+                            "grid_options": {"columns": "full"},
+                        },
+                    ],
+                },
+            ))
+        if water_cards:
+            sections.append({
+                "type": "grid",
+                "cards": [
+                    {"type": "heading", "heading": "Water usage · 30 days", "icon": WATER_ICON},
+                    *water_cards,
+                ],
+            })
+
         return {
             "title": TITLE,
             "views": [
@@ -90,28 +121,22 @@ class EnergyCostsDashboard(LovelaceConfig):
                     "icon": ICON,
                     "type": "sections",
                     "max_columns": 2,
-                    "sections": [
-                        {
-                            "type": "grid",
-                            "cards": [
-                                {"type": "heading", "heading": "Published usage · 30 days"},
-                                *charts,
-                            ],
-                        },
-                        {
-                            "type": "grid",
-                            "cards": [
-                                {"type": "heading", "heading": "Current-rate estimates"},
-                                {
-                                    "type": "markdown",
-                                    "content": ESTIMATES,
-                                    "grid_options": {"columns": "full"},
-                                },
-                            ],
-                        },
-                    ],
+                    "sections": sections,
                 },
             ],
+        }
+
+    @staticmethod
+    def _usage_chart(source: str, title: str) -> dict[str, Any]:
+        return {
+            "type": "statistics-graph",
+            "title": title,
+            "entities": [{"entity": source, "name": title}],
+            "chart_type": "bar",
+            "stat_types": ["change"],
+            "period": "day",
+            "days_to_show": 30,
+            "grid_options": {"columns": "full"},
         }
 
     async def async_json(self, force: bool):

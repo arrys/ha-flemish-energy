@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Separates Fluvius sign-in, meter setup, and energy provider selection. New estimates are named **Energy** by default.
+- Links a Pidpa cumulative water sensor and shows its meter reading and daily usage in Energy & Costs.
 
 ## v0.4.2
 

@@ -7,6 +7,7 @@
         "menu_options": {
           "login": "Sign in to a Mijn Fluvius account",
           "choose_account": "Add a meter to an existing Fluvius account",
+          "pidpa": "Add a Pidpa water meter",
           "provider": "Continue to energy provider"
         }
       },
@@ -55,10 +56,19 @@
       },
       "more_meters": {
         "title": "Step 2 of 3 · Finish Fluvius setup",
-        "description": "**{meter_count}** meter(s) saved with this Mijn Fluvius account. Add any remaining electricity or gas meters before proceeding.",
+        "description": "**{meter_count}** meter(s) saved with this Mijn Fluvius account. Add any remaining electricity or gas meters, or link a Pidpa water meter, before proceeding.",
         "menu_options": {
           "add_meter": "Add another meter",
+          "pidpa": "Add a Pidpa water meter",
           "provider": "Done with meters · Choose energy provider"
+        }
+      },
+      "pidpa": {
+        "title": "Step 2 of 3 · Add a Pidpa water meter",
+        "description": "Choose the Home Assistant sensor that reports the cumulative volume from your Pidpa meter. Pidpa supports reading a linked digital water meter through the activated P1 port of the electricity meter. If you use P1, first confirm that your reader exposes the water total in Home Assistant. This step uses that sensor and requires no Mijn Pidpa login.",
+        "data": {
+          "water_sensor": "Cumulative water sensor",
+          "label": "Dashboard name"
         }
       },
       "provider": {
@@ -113,6 +123,8 @@
       "fluvius_login_connection": "Couldn't verify the Mijn Fluvius login. Try again once the portal is reachable.",
       "saved_fluvius_auth": "Mijn Fluvius rejected the saved login. Update the account on its existing meter entry or start a new connection.",
       "account_removed": "That Fluvius account is no longer available. Choose another account.",
+      "no_water_sensor": "No available cumulative water sensor was found. Add or enable the water total in Home Assistant, then try again.",
+      "invalid_water_sensor": "That water sensor is no longer available. Select an active cumulative sensor.",
       "fluvius_connection": "Couldn't check this meter. Verify the EAN and serial number in Mijn Fluvius and try again.",
       "fluvius_empty": "The portal returned no recent daily summaries. Check whether your account can see this meter's consumption."
     },

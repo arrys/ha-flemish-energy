@@ -11,6 +11,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from homeassistant import config_entries
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.statistics import list_statistic_ids
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.const import ATTR_DEVICE_CLASS, ATTR_UNIT_OF_MEASUREMENT, UnitOfVolume
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er, selector
 
@@ -21,10 +23,13 @@ from .const import (
     ENTRY_KIND,
     FLUVIUS_METER,
     LABEL,
+    PIDPA_METER,
     PRICE,
     STATISTIC,
+    WATER_SENSOR,
 )
 from .coordinator import LOOKBACK_DAYS, async_read_estimate, current_rate
+from .estimate import finite_number
 from .fluvius.api import FluviusApiError, FluviusAuthenticationError
 from .fluvius.const import (
     CONF_EAN,
@@ -121,7 +126,7 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if meters:
             options.insert(0, "choose_account")
         if meters or self._has_loaded_entry("fluvius"):
-            options.append("provider")
+            options.extend(("pidpa", "provider"))
         else:
             return await self.async_step_login()
         return self.async_show_menu(
@@ -202,7 +207,7 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         return self.async_show_menu(
             step_id="more_meters",
-            menu_options=["add_meter", "provider"],
+            menu_options=["add_meter", "pidpa", "provider"],
             description_placeholders={"meter_count": str(meters)},
         )
 
@@ -211,6 +216,55 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         """Collect only the meter details for the selected account."""
         return await self._async_meter_form("add_meter", user_input)
+
+    async def async_step_pidpa(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Link a cumulative water-volume sensor already available in Home Assistant."""
+        meters = {
+            state.entity_id: state
+            for state in self.hass.states.async_all("sensor")
+            if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.WATER
+            and state.attributes.get("state_class") in (
+                SensorStateClass.TOTAL, SensorStateClass.TOTAL_INCREASING
+            )
+            and state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) in (
+                UnitOfVolume.CUBIC_METERS, UnitOfVolume.LITERS
+            )
+            and finite_number(state.state) is not None
+        }
+        if not meters:
+            return self.async_show_form(
+                step_id="pidpa", data_schema=probatio.Schema({}), errors={"base": "no_water_sensor"}
+            )
+
+        errors = {}
+        if user_input and (entity_id := user_input.get(WATER_SENSOR)):
+            if entity_id in meters:
+                await self.async_set_unique_id(f"pidpa:{entity_id}")
+                self._abort_if_unique_id_configured()
+                return self.async_create_entry(
+                    title=user_input.get(LABEL, "").strip() or "Pidpa water",
+                    data={ENTRY_KIND: PIDPA_METER, WATER_SENSOR: entity_id},
+                )
+            errors[WATER_SENSOR] = "invalid_water_sensor"
+
+        return self.async_show_form(
+            step_id="pidpa",
+            data_schema=probatio.Schema({
+                probatio.Required(WATER_SENSOR): selector.SelectSelector(
+                    selector.SelectSelectorConfig(options=[
+                        selector.SelectOptionDict(
+                            value=state.entity_id,
+                            label=f"{state.name} ({state.state} {state.attributes[ATTR_UNIT_OF_MEASUREMENT]})",
+                        )
+                        for state in sorted(meters.values(), key=lambda state: state.name.casefold())
+                    ])
+                ),
+                probatio.Optional(LABEL, default="Pidpa water"): selector.TextSelector(),
+            }),
+            errors=errors,
+        )
 
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]
@@ -319,13 +373,16 @@ class FlemishEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         """Continue onboarding from a successfully loaded meter."""
         entry = result["result"]
-        if (
-            entry.data.get(ENTRY_KIND) == FLUVIUS_METER
-            and entry.state is config_entries.ConfigEntryState.LOADED
-        ):
+        kind = entry.data.get(ENTRY_KIND)
+        account_entry_id = None
+        if kind == FLUVIUS_METER:
+            account_entry_id = entry.entry_id
+        elif kind == PIDPA_METER and self._account_entry():
+            account_entry_id = self._account_entry_id
+        if account_entry_id and entry.state is config_entries.ConfigEntryState.LOADED:
             next_flow = await self.hass.config_entries.flow.async_init(
                 DOMAIN, context={"source": config_entries.SOURCE_USER},
-                data={AFTER_METER: entry.entry_id},
+                data={AFTER_METER: account_entry_id},
             )
             result["next_flow"] = (config_entries.FlowType.CONFIG_FLOW, next_flow["flow_id"])
         return result
