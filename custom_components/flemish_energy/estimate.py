@@ -5,6 +5,7 @@ from math import fsum, isfinite
 from zoneinfo import ZoneInfo
 
 BRUSSELS = ZoneInfo("Europe/Brussels")
+ELECTRICITY_PUBLICATION_GRACE_DAYS = 2
 
 
 def day_window(now: datetime, days_ago: int) -> tuple[date, datetime, datetime]:
@@ -33,7 +34,7 @@ def measured_usage(rows) -> float | None:
 
 
 def latest_published_usage(
-    rows, earliest: date, today: date
+    rows, earliest: date, today: date, *, exclude_days: frozenset[date] = frozenset()
 ) -> tuple[date, float] | None:
     """Find the newest past Brussels day with usable Recorder changes."""
     by_day = {}
@@ -42,10 +43,23 @@ def latest_published_usage(
         if timestamp is None:
             continue
         day = datetime.fromtimestamp(timestamp, BRUSSELS).date()
-        if earliest <= day < today:
+        if earliest <= day < today and day not in exclude_days:
             by_day.setdefault(day, []).append(row)
 
     for day in sorted(by_day, reverse=True):
         if (usage := measured_usage(by_day[day])) is not None:
             return day, usage
     return None
+
+
+def provisional_electricity_days(import_rows, export_rows, today: date) -> frozenset[date]:
+    """Defer recent all-zero grid days while the provider can still revise them."""
+    provisional = set()
+    for offset in range(1, ELECTRICITY_PUBLICATION_GRACE_DAYS + 1):
+        day = today - timedelta(days=offset)
+        end = day + timedelta(days=1)
+        imported = latest_published_usage(import_rows, day, end)
+        exported = latest_published_usage(export_rows, day, end)
+        if imported == (day, 0) and exported == (day, 0):
+            provisional.add(day)
+    return frozenset(provisional)

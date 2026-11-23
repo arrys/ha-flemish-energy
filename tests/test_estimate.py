@@ -51,6 +51,31 @@ class EstimateTests(unittest.TestCase):
             (date(2026, 11, 20), 4),
         )
 
+    def test_recent_all_zero_day_does_not_hide_weekend_off_peak_usage(self):
+        today = date(2026, 11, 23)
+        dates = [date(2026, 11, day) for day in (20, 21, 22)]
+        starts = [datetime(day.year, day.month, day.day, 1, tzinfo=UTC).timestamp() for day in dates]
+
+        def rows(*changes):
+            return [{"start": start, "change": change} for start, change in zip(starts, changes)]
+
+        provisional = estimate.provisional_electricity_days(
+            rows(0, 67.388, 0), rows(0, 0, 0), today
+        )
+        self.assertEqual(provisional, frozenset({dates[2]}))
+        self.assertEqual(
+            estimate.latest_published_usage(
+                rows(0, 0, 0), dates[0], today, exclude_days=provisional
+            ),
+            (dates[1], 0),
+        )
+        self.assertEqual(
+            estimate.latest_published_usage(
+                rows(0, 67.388, 0), dates[0], today, exclude_days=provisional
+            ),
+            (dates[1], 67.388),
+        )
+
     def test_component_python_and_json_parse(self):
         for file in COMPONENT.rglob("*.py"):
             ast.parse(file.read_text(encoding="utf-8"), filename=str(file))

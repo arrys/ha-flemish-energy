@@ -14,7 +14,13 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import DAYS_AGO, PRICE, PRICE_UNIT, STATISTIC
 from .electricity import TARIFF_METRICS, electricity_meter, engie_tariff_entities
-from .estimate import day_window, finite_number, latest_published_usage, measured_usage
+from .estimate import (
+    day_window,
+    finite_number,
+    latest_published_usage,
+    measured_usage,
+    provisional_electricity_days,
+)
 
 LOGGER = logging.getLogger(__name__)
 LOOKBACK_DAYS = 14
@@ -34,32 +40,42 @@ async def async_read_estimate(
         if tariff in rates
     }
     now = datetime.now(UTC)
+    today, midnight, _ = day_window(now, 0)
     offset = pair.get(DAYS_AGO)
     day, start, end = day_window(now, int(offset) if offset is not None else LOOKBACK_DAYS)
     if offset is None:
-        today, end, _ = day_window(now, 0)
+        end = midnight
+    grid_totals = (f"{meter}_consumption_total", f"{meter}_injection_total") if meter else ()
     results = await get_instance(hass).async_add_executor_job(
         statistics_during_period,
         hass,
         start,
         end,
-        {statistic_id, *tariff_sources},
+        {statistic_id, *tariff_sources, *grid_totals},
         "hour",
         None,
         {"change"},
     )
     rows = results.get(statistic_id, [])
+    provisional = frozenset()
+    if grid_totals:
+        import_total, export_total = grid_totals
+        provisional = provisional_electricity_days(
+            results.get(import_total, []), results.get(export_total, []), today
+        )
     if offset is None:
-        latest = latest_published_usage(rows, day, today)
+        latest = latest_published_usage(rows, day, today, exclude_days=provisional)
         day, usage = latest if latest is not None else (None, None)
     else:
-        usage = measured_usage(rows)
+        usage = measured_usage(rows) if day not in provisional else None
 
     result = {
         "usage_date": day.isoformat() if day else None,
         "usage_kwh": usage,
         "rate_eur_per_kwh": current_rate(hass, price_entity),
     }
+    if provisional and (day is None or any(candidate >= day for candidate in provisional)):
+        result["provisional_electricity_day"] = max(provisional).isoformat()
     if result["rate_eur_per_kwh"] is None and meter:
         metric = statistic_id.removeprefix(f"{meter}_")
         tariff = TARIFF_METRICS.get(metric)
@@ -67,7 +83,7 @@ async def async_read_estimate(
             tariff = ("offtake" if metric == "consumption_total" else "injection", "total_hours")
         if tariff in rates:
             result["rate_eur_per_kwh"] = current_rate(hass, rates[tariff])
-    if day and tariff_sources:
+    if day and day not in provisional and tariff_sources:
         next_day = day + timedelta(days=1)
         costs = {}
         for source, (metric, entity_id) in tariff_sources.items():

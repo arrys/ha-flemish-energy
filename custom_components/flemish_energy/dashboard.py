@@ -54,11 +54,12 @@ Add a meter and rate through the Flemish Energy setup wizard.
 TARIFF_ESTIMATES = """\
 {% set selected = namespace(entity=none) %}
 {% for entity in ENTITY_IDS %}
-{% if selected.entity is none and state_attr(entity, 'electricity_costs') is mapping %}
+{% if selected.entity is none and (state_attr(entity, 'electricity_costs') is mapping or state_attr(entity, 'provisional_electricity_day')) %}
 {% set selected.entity = entity %}
 {% endif %}
 {% endfor %}
-{% if selected.entity %}
+{% set provisional = state_attr(selected.entity, 'provisional_electricity_day') if selected.entity else none %}
+{% if selected.entity and state_attr(selected.entity, 'electricity_costs') is mapping %}
 {% set amounts = state_attr(selected.entity, 'electricity_costs') %}
 {% macro euros(metric) -%}
 {{ '€%.2f' | format(amounts[metric]) if metric in amounts else 'Unavailable' }}
@@ -69,6 +70,12 @@ TARIFF_ESTIMATES = """\
 | --- | ---: | ---: |
 | Day / peak | {{ euros('consumption_high') }} | {{ euros('injection_high') }} |
 | Night / off-peak | {{ euros('consumption_low') }} | {{ euros('injection_low') }} |
+{% if provisional %}
+
+{{ provisional }} is still within the publication window and currently reports zero import and export.
+{% endif %}
+{% elif provisional %}
+Waiting for readings for **{{ provisional }}**. Fluvius currently reports zero import and export for this recent day.
 {% else %}
 Waiting for readings and matching ENGIE tariff rates.
 {% endif %}

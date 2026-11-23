@@ -1,5 +1,9 @@
 # Release notes
 
+## v0.4.8
+
+- Keeps recent all-zero electricity days out of automatic cost estimates while Fluvius may still revise them.
+
 ## v0.4.7
 
 - Resolves the tariff table from the meter EAN if the saved ENGIE rate entity was renamed and there is only one matching agreement.
